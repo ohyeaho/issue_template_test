@@ -1,0 +1,63 @@
+name: "📄 その他タスク"
+description: "調査、ドキュメント作成、リファクタリング等のその他のタスクを詳細に定義します。"
+title: "Task:"
+# labels: ["task", "other", "detailed"] # 必要に応じて変更 (e.g., documentation, investigation, refactoring)
+body:
+  - type: markdown
+    attributes:
+      value: |
+        その他のタスクを作成します。作業内容と目的を明確に記入してください。
+  - type: dropdown
+    id: task-type
+    attributes:
+      label: "タスクの種類"
+      description: "どのような種類のタスクですか？"
+      options:
+        - "調査"
+        - "ドキュメント作成/更新"
+        - "リファクタリング"
+        - "テスト改善/追加"
+        - "定例作業/運用"
+        - "その他"
+    validations:
+      required: true
+  - type: textarea
+    id: background-goal
+    attributes:
+      label: "背景と目的"
+      description: "なぜこのタスクが必要ですか？このタスクで何を達成したいですか？"
+    validations:
+      required: true
+  - type: textarea
+    id: task-details
+    attributes:
+      label: "具体的な作業内容"
+      description: "どのような作業を行いますか？手順や範囲を具体的に記述してください。"
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: "完了条件"
+      description: "どのような状態になったらこのタスクは完了ですか？"
+    validations:
+      required: true
+  - type: dropdown
+    id: estimated-effort
+    attributes:
+      label: "作業見積もり"
+      description: "作業にかかる時間の見積もりやポイントなど。"
+      options:
+        - "1 ポイント (1-2時間程度)"
+        - "2 ポイント (半日程度)"
+        - "3 ポイント (1日程度)"
+        - "5 ポイント (2-3日程度)"
+        - "8 ポイント (1週間程度)"
+        - "13 ポイント (2週間以上)"
+    validations:
+      required: false
+  - type: textarea
+    id: notes
+    attributes:
+      label: "その他メモ/参考情報"
+      description: "関連資料、注意点など。"

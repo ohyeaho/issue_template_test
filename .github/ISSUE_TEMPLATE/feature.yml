@@ -1,0 +1,64 @@
+name: "✨ Feature"
+description: "新機能開発のタスクを詳細に定義します。"
+title: "Feature:"
+labels: ["task", "feature", "detailed"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        新機能開発タスクを作成します。担当者が仕様を理解し、開発を進められるよう詳細を記入してください。
+  - type: input
+    id: related-spec
+    attributes:
+      label: "関連する仕様書/ドキュメント (任意)"
+      description: "関連する仕様書やデザイン資料などのリンクがあれば入力してください。"
+      placeholder: "URL or ファイルパス"
+  - type: textarea
+    id: background-goal
+    attributes:
+      label: "背景と目的"
+      description: "なぜこの機能が必要ですか？このタスクで何を達成したいですか？"
+    validations:
+      required: true
+  - type: textarea
+    id: requirements-spec
+    attributes:
+      label: "要件/仕様"
+      description: "開発する機能の具体的な要件や仕様を記述してください。UI/UXの考慮点もあれば。"
+    validations:
+      required: true
+  - type: textarea
+    id: tasks-breakdown
+    attributes:
+      label: "主な作業項目（任意）"
+      description: "このタスクを達成するための具体的なサブタスクをリストアップしてください。"
+      placeholder: "- [ ] API設計\n- [ ] フロントエンド実装\n- [ ] テスト作成"
+    validations:
+      required: false
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: "完了条件"
+      description: "どのような状態になったらこのタスクは完了ですか？（ユーザー観点、テスト観点など）"
+    validations:
+      required: true
+  - type: dropdown
+    id: estimated-effort
+    attributes:
+      label: "作業見積もり"
+      description: "作業にかかる時間の見積もりやポイントなど。"
+      options:
+        - "1 ポイント (1-2時間程度)"
+        - "2 ポイント (半日程度)"
+        - "3 ポイント (1日程度)"
+        - "5 ポイント (2-3日程度)"
+        - "8 ポイント (1週間程度)"
+        - "13 ポイント (2週間以上)"
+        - "21 ポイント (1ヶ月程度)"
+    validations:
+      required: false
+  - type: textarea
+    id: notes
+    attributes:
+      label: "その他メモ/考慮事項"
+      description: "技術的な懸念点、依存関係、参考情報などがあれば記述してください。"

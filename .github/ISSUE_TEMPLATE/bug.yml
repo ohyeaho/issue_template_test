@@ -1,0 +1,62 @@
+name: "🐛 Bug"
+description: "バグ修正作業の詳細を定義します。"
+title: "Bug:"
+labels: ["task", "bugfix", "detailed"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        バグ修正タスクを作成します。担当者が作業を進められるよう、以下の情報を記入してください。
+  - type: input
+    id: related-issue
+    attributes:
+      label: "関連バグ報告Issue (任意)"
+      description: "この修正タスクの元となったバグ報告Issueがあれば番号 (#) を入力してください。"
+      placeholder: "#123"
+  - type: textarea
+    id: bug-summary
+    attributes:
+      label: "Bug概要"
+      description: "どのようなバグを修正しますか？"
+    validations:
+      required: true
+  - type: textarea
+    id: cause-analysis
+    attributes:
+      label: "原因分析（分かれば）"
+      description: "バグの原因についての分析結果や仮説を記述してください。"
+    validations:
+      required: false
+  - type: textarea
+    id: proposed-fix
+    attributes:
+      label: "修正方針/作業内容案"
+      description: "どのように修正する予定ですか？具体的な作業手順や影響範囲を記述してください。"
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: "完了条件/テスト方法"
+      description: "どのような状態になったらこのタスクは完了ですか？確認方法やテストケースを記述してください。"
+    validations:
+      required: true
+  - type: dropdown
+    id: estimated-effort
+    attributes:
+      label: "作業見積もり"
+      description: "作業にかかる時間の見積もりやポイントなど（チームのルールに合わせて）。"
+      options:
+        - "1 ポイント (1-2時間程度)"
+        - "2 ポイント (半日程度)"
+        - "3 ポイント (1日程度)"
+        - "5 ポイント (2-3日程度)"
+        - "8 ポイント (1週間程度)"
+        - "13 ポイント (2週間以上)"
+    validations:
+      required: false
+  - type: textarea
+    id: notes
+    attributes:
+      label: "その他メモ/考慮事項"
+      description: "特記事項、注意点、参考情報などがあれば記述してください。"
