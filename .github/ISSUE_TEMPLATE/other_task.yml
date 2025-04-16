@@ -1,6 +1,6 @@
 name: "📄 その他タスク"
 description: "調査、ドキュメント作成、リファクタリング等のその他のタスクを詳細に定義します。"
-title: "Task:"
+title: "Task: "
 # labels: ["task", "other", "detailed"] # 必要に応じて変更 (e.g., documentation, investigation, refactoring)
 body:
   - type: markdown

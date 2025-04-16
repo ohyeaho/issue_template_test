@@ -1,16 +1,16 @@
 name: "✨ Feature"
 description: "新機能開発のタスクを詳細に定義します。"
-title: "Feature:"
+title: "Feature: "
 labels: ["task", "feature", "detailed"]
 body:
   - type: markdown
     attributes:
       value: |
         新機能開発タスクを作成します。担当者が仕様を理解し、開発を進められるよう詳細を記入してください。
-  - type: input
+  - type: textarea
     id: related-spec
     attributes:
-      label: "関連する仕様書/ドキュメント (任意)"
+      label: "関連する仕様書/ドキュメント"
       description: "関連する仕様書やデザイン資料などのリンクがあれば入力してください。"
       placeholder: "URL or ファイルパス"
   - type: textarea
@@ -30,7 +30,7 @@ body:
   - type: textarea
     id: tasks-breakdown
     attributes:
-      label: "主な作業項目（任意）"
+      label: "主な作業項目"
       description: "このタスクを達成するための具体的なサブタスクをリストアップしてください。"
       placeholder: "- [ ] API設計\n- [ ] フロントエンド実装\n- [ ] テスト作成"
     validations:

@@ -1,6 +1,6 @@
 name: "🐛 Bug"
 description: "バグ修正作業の詳細を定義します。"
-title: "Bug:"
+title: "Bug: "
 labels: ["task", "bugfix", "detailed"]
 body:
   - type: markdown
@@ -10,7 +10,7 @@ body:
   - type: input
     id: related-issue
     attributes:
-      label: "関連バグ報告Issue (任意)"
+      label: "関連バグ報告Issue"
       description: "この修正タスクの元となったバグ報告Issueがあれば番号 (#) を入力してください。"
       placeholder: "#123"
   - type: textarea
@@ -23,7 +23,7 @@ body:
   - type: textarea
     id: cause-analysis
     attributes:
-      label: "原因分析（分かれば）"
+      label: "原因分析"
       description: "バグの原因についての分析結果や仮説を記述してください。"
     validations:
       required: false
