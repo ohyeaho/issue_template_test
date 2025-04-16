@@ -1,0 +1,142 @@
+# PRのタイトルからラベルを自動付与する
+# 「Feature:」-> enhancement
+# 「Fix:」-> bug
+# 「Test:」-> test
+# 「Release:」-> release
+
+name: Automatically Label PR Based on Title
+
+# ワークフローをトリガーするイベントを定義
+on:
+  pull_request:
+    # PRが開かれたとき、編集されたとき、再オープンされたとき、コミットがプッシュされたときに実行
+    types: [opened, edited, reopened, synchronize]
+
+# ワークフローが必要とする権限を設定
+permissions:
+  contents: write  # リポジトリの内容に対する書き込み権限
+  issues: write    # issuesに対する書き込み権限（ラベルの追加・削除に必要）
+  pull-requests: write  # PRに対する書き込み権限（ラベルの追加・削除に必要）
+
+# ジョブの定義
+jobs:
+  label-by-title:
+    # ジョブが実行される環境を指定（最新のUbuntu環境）
+    runs-on: ubuntu-latest
+    steps:
+      # ステップ1: PRのタイトルに基づいてラベルを付与
+      - name: Label PRs based on title prefix
+        # GitHubスクリプトアクションを使用
+        uses: actions/github-script@v6
+        with:
+          # 実行するスクリプトを定義
+          script: |
+            // リポジトリのオーナー名とリポジトリ名を取得
+            const { owner, repo } = context.repo;
+            // PRの番号を取得
+            const issue_number = context.issue.number;
+            // PRのタイトルを取得
+            const title = context.payload.pull_request.title;
+
+            // 定義するラベルとその属性（カラーと説明）
+            const labelDefinitions = {
+              'enhancement': { color: 'a2eeef', description: 'New feature or request' },
+              'bug': { color: 'd73a4a', description: 'Something isn\'t working' },
+              'test': { color: '0E8A16', description: 'テスト' },
+              'release': { color: '955A83', description: 'リリース' }
+            };
+
+            // タイトルのプレフィックスに基づいて対応するラベルを決定
+            let matchedLabel = null;
+            if (title.startsWith('Feature:')) {
+              matchedLabel = 'enhancement';
+            } else if (title.startsWith('Fix:')) {
+              matchedLabel = 'bug';
+            } else if (title.startsWith('Test:')) {
+              matchedLabel = 'test';
+            } else if (title.startsWith('Release:')) {
+              matchedLabel = 'release';
+            }
+
+            // ラベルの存在確認と自動作成
+            if (matchedLabel) {
+              try {
+                // リポジトリ内の既存のラベルを取得
+                const existingLabels = await github.rest.issues.listLabelsForRepo({
+                  owner,
+                  repo
+                }).then(res => res.data.map(label => label.name));
+
+                // 必要なラベルが存在しない場合は作成
+                if (!existingLabels.includes(matchedLabel)) {
+                  const labelInfo = labelDefinitions[matchedLabel];
+                  await github.rest.issues.createLabel({
+                    owner,
+                    repo,
+                    name: matchedLabel,
+                    color: labelInfo.color,
+                    description: labelInfo.description
+                  });
+                  console.log(`Created label '${matchedLabel}'.`);
+                }
+              } catch (error) {
+                // ラベルの確認や作成中にエラーが発生した場合、エラーメッセージを出力してワークフローを中断
+                console.error(`Error checking or creating label '${matchedLabel}': ${error.message}`);
+                throw error;
+              }
+            }
+
+            try {
+              // PRに既に存在する関連ラベルを取得
+              const currentLabels = await github.rest.issues.listLabelsOnIssue({
+                owner,
+                repo,
+                issue_number
+              }).then(res => res.data.map(label => label.name));
+
+              // すべての関連ラベルを定義
+              const allRelatedLabels = Object.keys(labelDefinitions);
+
+              // 既存の関連ラベルを削除（matchedLabel以外）
+              const labelsToRemove = currentLabels.filter(label => allRelatedLabels.includes(label) && label !== matchedLabel);
+              if (labelsToRemove.length > 0) {
+                // 一度に一つのラベルしか削除できないため、ループで全てのラベルを削除
+                for (const label of labelsToRemove) {
+                  await github.rest.issues.removeLabel({
+                    owner,
+                    repo,
+                    issue_number,
+                    name: label
+                  });
+                  console.log(`Removed label: ${label}.`);
+                }
+              }
+
+              // 再度、PRに存在するラベルを取得
+              const existingLabelsOnPR = await github.rest.issues.listLabelsOnIssue({
+                owner,
+                repo,
+                issue_number
+              }).then(res => res.data.map(label => label.name));
+
+              // 新たに追加するラベルを決定
+              const newLabels = matchedLabel ? [matchedLabel] : [];
+              // 既に存在するラベルを除外
+              const labelsToAdd = newLabels.filter(label => !existingLabelsOnPR.includes(label));
+
+              // ラベルを追加
+              if (labelsToAdd.length > 0) {
+                await github.rest.issues.addLabels({
+                  owner,
+                  repo,
+                  issue_number,
+                  labels: labelsToAdd
+                });
+                console.log(`Added label(s): ${labelsToAdd.join(', ')}.`);
+              }
+
+            } catch (error) {
+              // ラベルの追加や削除中にエラーが発生した場合、エラーメッセージを出力してワークフローを中断
+              console.error(`Error adding or removing labels: ${error.message}`);
+              throw error;
+            }

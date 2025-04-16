@@ -1,0 +1,193 @@
+# リリースノートを生成し、リリースを作成するワークフロー
+# トリガー条件:
+# release/v*.*.* ブランチへのプッシュ時("Release:"を含むなコミットメッセージのみ)
+
+name: Create Release Tag and Release Note
+
+# トリガー設定: 'release/v*.*.*' にマッチするブランチへのプッシュ時に実行
+on:
+  push:
+    branches:
+      - 'release/v*.*.*'
+
+# 必要最低限のパーミッションを設定
+permissions:
+  contents: write  # リリースやタグの操作に必要
+
+jobs:
+  create-release:
+    # ジョブを実行する条件: コミットメッセージに "Release:" が含まれない場合はスキップ("release:"でも可)
+    if: contains(github.event.head_commit.message, 'Release:')
+    runs-on: ubuntu-latest  # 最新のUbuntu環境で実行
+
+    steps:
+      # ソースコードをチェックアウト
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # ブランチ名からバージョンを抽出し、SemVer形式を検証
+      - name: Extract version from branch name
+        id: get_version
+        run: |
+          # 現在のブランチ名を取得（例: release/v1.2.3）
+          BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+          echo "ブランチ名: $BRANCH_NAME"
+
+          # 正規表現を用いてバージョンを抽出（例: v1.2.3）
+          VERSION=$(echo "$BRANCH_NAME" | grep -oP 'v\d+\.\d+\.\d+')
+          
+          # バージョンが抽出できなかった場合はエラー
+          if [[ -z "$VERSION" ]]; then
+            echo "ブランチ名に有効なバージョン形式（vX.Y.Z）が含まれていません。"
+            exit 1
+          fi
+
+          echo "抽出されたバージョン: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      # 既存のリリースが存在する場合は削除
+      - name: Delete existing release if exists
+        run: |
+          set -e  # エラー時にスクリプトを停止
+          NEW_TAG="${{ steps.get_version.outputs.version }}"
+          echo "新しいタグ: $NEW_TAG"
+
+          # リリース情報を取得
+          release_info=$(curl -s \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${NEW_TAG}")
+
+          release_id=$(echo "$release_info" | jq -r .id)
+
+          # 既存リリースが存在する場合は削除
+          if [ "$release_id" != "null" ] && [ -n "$release_id" ]; then
+            echo "タグ '${NEW_TAG}' のリリース (ID: ${release_id}) が既に存在します。削除します..."
+            response=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
+              -H "Accept: application/vnd.github.v3+json" \
+              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/${release_id}")
+            if [ "$response" -ne 204 ]; then
+              echo "既存リリースの削除に失敗しました。HTTPステータス: $response"
+              exit 1
+            fi
+            echo "既存リリースを正常に削除しました。"
+          else
+            echo "タグ '${NEW_TAG}' に対応する既存リリースは存在しません。"
+          fi
+
+      # 既存のタグが存在する場合は削除
+      - name: Delete existing tag if exists
+        run: |
+          set -e
+          NEW_TAG="${{ steps.get_version.outputs.version }}"
+          echo "削除対象のタグ: $NEW_TAG"
+
+          # タグ参照を取得
+          tag_ref=$(curl -s \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/git/refs/tags/${NEW_TAG}" \
+            | jq -r .ref)
+
+          # タグが存在する場合は削除
+          if [ "$tag_ref" != "null" ]; then
+            echo "タグ '${NEW_TAG}' (${tag_ref}) が既に存在します。削除します..."
+            response=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
+              -H "Accept: application/vnd.github.v3+json" \
+              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/${{ github.repository }}/git/refs/tags/${NEW_TAG}")
+            if [ "$response" -ne 204 ]; then
+              echo "既存タグの削除に失敗しました。HTTPステータス: $response"
+              exit 1
+            fi
+            echo "既存タグを正常に削除しました。"
+          else
+            echo "タグ '${NEW_TAG}' は存在しません。"
+          fi
+
+      # 前回のタグを取得
+      - name: Get previous tag
+        id: previous_tag
+        run: |
+          set -e
+          git fetch --tags  # タグ情報を取得
+          echo "最新のタグ一覧を取得中..."
+          # 最新のタグを取得（現在のタグを除外）
+          PREVIOUS_TAG=$(git tag --sort=-creatordate | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | grep -v "^${{ steps.get_version.outputs.version }}$" | head -n 1)
+
+          if [[ -z "$PREVIOUS_TAG" ]]; then
+            echo "前回のタグは存在しません。初回リリースと見なします。"
+            PREVIOUS_TAG=""
+          else
+            echo "前回のタグ: $PREVIOUS_TAG"
+          fi
+
+          echo "latest_tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
+
+      # リリースノートを生成
+      - name: Generate release note
+        id: release_note
+        run: |
+          set -e
+          NEW_TAG="${{ steps.get_version.outputs.version }}"
+          PREVIOUS_TAG="${{ steps.previous_tag.outputs.latest_tag }}"
+          echo "新しいタグ: $NEW_TAG"
+          echo "前回のタグ: $PREVIOUS_TAG"
+
+          # GitHub APIを使用してリリースノートを生成
+          response=$(curl -s -w "%{http_code}" -o release_notes.json -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            https://api.github.com/repos/${{ github.repository }}/releases/generate-notes \
+            -d "{\"tag_name\":\"$NEW_TAG\", \"previous_tag_name\":\"$PREVIOUS_TAG\"}")
+
+          # レスポンスコードを取得
+          http_status=$(echo "$response" | tail -n1)
+          if [ "$http_status" -ne 200 ]; then
+            echo "リリースノートの生成に失敗しました。HTTPステータス: $http_status"
+            cat release_notes.json
+            exit 1
+          fi
+
+          # 生成されたリリースノートを取得
+          BODY=$(jq -r .body release_notes.json)
+          echo "リリースノートを正常に生成しました。"
+
+          # リリースノートを出力に設定
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          echo "$BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      # リリースを作成
+      - name: Create release
+        run: |
+          set -e
+          NEW_TAG="${{ steps.get_version.outputs.version }}"
+          BODY="${{ steps.release_note.outputs.body }}"
+          echo "作成するリリースのタグ: $NEW_TAG"
+
+          # リリースノートのJSONエスケープ
+          BODY_ESCAPED=$(echo "$BODY" | jq -Rs .)
+
+          # リリースを作成するためのAPIリクエスト
+          echo "リリースを作成中..."
+          response=$(curl -s -w "%{http_code}" -o create_release_response.json -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ github.repository }}/releases \
+            -d "{
+              \"tag_name\": \"${NEW_TAG}\",
+              \"name\": \"${NEW_TAG}\",
+              \"body\": $BODY_ESCAPED
+            }")
+
+          # レスポンスコードを取得
+          http_status=$(echo "$response" | tail -n1)
+          if [ "$http_status" -ne 201 ]; then
+            echo "リリースの作成に失敗しました。HTTPステータス: $http_status"
+            cat create_release_response.json
+            exit 1
+          fi
+
+          echo "リリース '${NEW_TAG}' を正常に作成しました。"
